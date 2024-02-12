@@ -1,6 +1,8 @@
 import numpy as np
 from math import sqrt
-from pool import Token, Vault, LiquidityPool, DiamondPool, PriceFeed
+
+from custom_types import PriceFeed
+from pool import LiquidityPool
 
 
 def generate_uninformed_transactions(num_transactions, retail_size):

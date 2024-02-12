@@ -1,18 +1,13 @@
 from math import exp
 
-from pool import LiquidityPool
 from custom_types import PriceFeed, Token
 
 
-def time_weighted_moving_average(
-    token_x: Token, token_y: Token, prices: list[float], window: int
-) -> list[float]:
+def time_weighted_moving_average(prices: list[float], window: int) -> list[float]:
     """
     Calculate the time-weighted moving average of the price of the pool over a window of blocks.
 
     Args:
-        token_x (Token): The first token in the pool.
-        token_y (Token): The second token in the pool.
         prices (list[float]): The price of the pool over time.
         window (int): The number of blocks to consider in the moving average.
 
@@ -44,7 +39,7 @@ def calculate_volatility(
     """
     prices = [oracle[i][token_x] / oracle[i][token_y] for i in range(len(oracle))]
     twma = time_weighted_moving_average(
-        token_x, token_y, prices, window
+        prices, window
     )  # [0~window-1 : len(oracle)-window ~ len(oracle)-1]
     volatility = [
         sum([(prices[i + window] - twma[i]) ** 2 for i in range(window)]) / window

@@ -1,7 +1,7 @@
 from math import sqrt
 
-from custom_types import PriceFeed, Oracle
-from pool import Token, Vault, LiquidityPool, DiamondPool
+from custom_types import PriceFeed
+from pool import LiquidityPool, DiamondPool
 
 
 def core_protocol(pool: DiamondPool, price_feed: PriceFeed, tx_fee: float):
@@ -13,6 +13,7 @@ def core_protocol(pool: DiamondPool, price_feed: PriceFeed, tx_fee: float):
     Args:
         pool (LiquidityPool): The liquidity pool to adjust.
         price_feed (PriceFeed): The price feed for the pool.
+        tx_fee (float): The transaction fee for the pool.
     """
     beta = pool.beta
     token_x, token_y = pool.token_x, pool.token_y

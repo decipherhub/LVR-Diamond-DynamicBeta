@@ -1,14 +1,14 @@
 import numpy as np
 from typing import Optional, Callable
 
-from pool import Token, Vault, LiquidityPool, DiamondPool, PriceFeed
+from custom_types import Token, Oracle
+from pool import LiquidityPool, DiamondPool
 from strategy import multi_pool_random_swap, perform_arbitrage
 from dynamic_fee import (
     calculate_volatility,
     calculate_dynamic_fee,
     calculate_dynamic_beta,
 )
-from custom_types import Oracle
 
 np.random.seed(123)
 

@@ -2,8 +2,8 @@ import os
 import pandas as pd
 import time
 
+from custom_types import Token
 from simulator import Simulator
-from pool import Token
 from diamond_protocol import core_protocol, vault_rebalancing, vault_conversion
 
 # assume 12 second blocks as in the mainnet
