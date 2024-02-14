@@ -44,7 +44,12 @@ def multi_pool_random_swap(pools: list[LiquidityPool], price_feed: PriceFeed):
     target_price = price_feed[token_x] / price_feed[token_y]
 
     # Generate Transactions
-    transactions = generate_uninformed_transactions(10 * len(pools), 50)
+    transactions = generate_uninformed_transactions(
+        max(round(np.random.normal(1.2546, 0.5909)), 0),
+        max(
+            np.random.normal(1743, 6331), 0
+        ),  # Its a mean and std deviation of number of transactions and retail size of Uniswap V2 ETH/USDT pool in 2023/02~2024/02
+    )
     pending_swaps = []
 
     for transaction in transactions:
@@ -91,7 +96,8 @@ def multi_pool_random_swap(pools: list[LiquidityPool], price_feed: PriceFeed):
             pool.swap(token_y, swap_size)
 
         swap_fee = swap_size * price_feed[token_y] * pool.fee
-        pool.collected_fees += swap_fee
+        pool.collected_fees_retail.append(swap_fee)
+        pool.volume_retail.append(swap_size * price_feed[token_y])
 
 
 def compute_profit_maximizing_trade(
@@ -135,7 +141,7 @@ def compute_profit_maximizing_trade(
 def perform_arbitrage(
     pool: LiquidityPool,
     price_feed: PriceFeed,
-    tx_fee: float,
+    tx_fee_per_eth: float,
 ):
     """
     Perform an arbitrage trade in the given liquidity pool.
@@ -143,16 +149,14 @@ def perform_arbitrage(
     Args:
         pool (LiquidityPool): The liquidity pool to perform the arbitrage trade in.
         price_feed (PriceFeed): The price feed for the pool.
-        tx_fee (float): The transaction fee for the trade.
+        tx_fee_per_eth (float): The transaction fee per eth.
 
     """
 
     token_x, token_y = pool.token_x, pool.token_y
 
-    # Calculate the current price of the pool
-    current_price = pool.price
-
     target_price = price_feed[token_x] / price_feed[token_y]
+    tx_fee = tx_fee_per_eth * target_price
 
     # Compute the profit-maximizing trade
     x_to_y, arb_amount = compute_profit_maximizing_trade(
@@ -168,8 +172,9 @@ def perform_arbitrage(
         arbitrageur_profit = lp_loss_vs_cex - swap_fee - tx_fee
         if arbitrageur_profit > 0:
             pool.swap(token_x, arb_amount)
-            pool.lvr += lp_loss_vs_cex  # account without swap fees and tx fees
-            pool.collected_fees += swap_fee
+            pool.lvr.append(lp_loss_vs_cex)  # account without swap fees and tx fees
+            pool.collected_fees_arbitrage.append(swap_fee)
+            pool.volume_arbitrage.append(arb_amount * price_feed[token_x])
     else:  # Arbitrageur sell token_y and buy token_x
         swap_fee = arb_amount * price_feed[token_y] * pool.fee
         lp_loss_vs_cex = (
@@ -179,5 +184,6 @@ def perform_arbitrage(
         arbitrageur_profit = lp_loss_vs_cex - swap_fee - tx_fee
         if arbitrageur_profit > 0:
             pool.swap(token_y, arb_amount)
-            pool.lvr += lp_loss_vs_cex
-            pool.collected_fees += swap_fee
+            pool.lvr.append(lp_loss_vs_cex)
+            pool.collected_fees_arbitrage.append(swap_fee)
+            pool.volume_arbitrage.append(arb_amount * price_feed[token_y])

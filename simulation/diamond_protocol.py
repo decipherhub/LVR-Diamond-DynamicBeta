@@ -4,7 +4,7 @@ from custom_types import PriceFeed
 from pool import LiquidityPool, DiamondPool
 
 
-def core_protocol(pool: DiamondPool, price_feed: PriceFeed, tx_fee: float):
+def core_protocol(pool: DiamondPool, price_feed: PriceFeed, tx_fee_per_eth: float):
     """
     Perform the core protocol for a diamond pool.
     Arbitrageurs are incentivized to perform swaps that move the price of the pool towards the price specified by the price feed.
@@ -13,11 +13,12 @@ def core_protocol(pool: DiamondPool, price_feed: PriceFeed, tx_fee: float):
     Args:
         pool (LiquidityPool): The liquidity pool to adjust.
         price_feed (PriceFeed): The price feed for the pool.
-        tx_fee (float): The transaction fee for the pool.
+        tx_fee_per_gas (float): The transaction fee per eth.
     """
     beta = pool.beta
     token_x, token_y = pool.token_x, pool.token_y
     target_price = price_feed[token_x] / price_feed[token_y]
+    tx_fee = tx_fee_per_eth * target_price
 
     target_reserve_x = pool.liquidity / sqrt(target_price)
     target_reserve_y = pool.liquidity * sqrt(target_price)
@@ -42,13 +43,17 @@ def core_protocol(pool: DiamondPool, price_feed: PriceFeed, tx_fee: float):
             pool.reserve[token_x] = pool.reserve_y / target_price
             # excess token_x is moved to the vault
             pool.vault.reserve[token_x] += target_reserve_x - pool.reserve_x
+
+            pool.volume_arbitrage.append(abs(delta_x) * price_feed[token_x])
         elif delta_y < 0:  # arbitrageur buys token_y and sells token_x
             pool.vault.reserve[token_y] += abs(delta_y) * beta
             pool.reserve[token_x] += delta_x * (1 - beta)
             pool.reserve[token_y] = pool.reserve_x * target_price
             pool.vault.reserve[token_y] += target_reserve_y - pool.reserve_y
 
-        pool.lvr += lp_loss_vs_cex  # account without swap fees and tx fees
+            pool.volume_arbitrage.append(abs(delta_y) * price_feed[token_y])
+
+        pool.lvr.append(lp_loss_vs_cex)  # account without swap fees and tx fees
 
 
 def vault_rebalancing(pool: LiquidityPool, price_feed: PriceFeed):

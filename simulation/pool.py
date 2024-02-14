@@ -31,8 +31,11 @@ class LiquidityPool:
     reserve: dict[Token, float] = field(init=False)
     fee: float
     dynamic_fee: bool
-    lvr: float
-    collected_fees: float
+    lvr: list[float]
+    collected_fees_retail: list[float]
+    collected_fees_arbitrage: list[float]
+    volume_retail: list[float]
+    volume_arbitrage: list[float]
 
     def __init__(self, token_x, token_y, fee, dynamic_fee):
         self.token_x = token_x
@@ -40,8 +43,11 @@ class LiquidityPool:
         self.fee = fee
         self.dynamic_fee = dynamic_fee
         self.reserve = {self.token_x: 0, self.token_y: 0}
-        self.lvr = 0
-        self.collected_fees = 0
+        self.lvr = []
+        self.collected_fees_retail = []
+        self.collected_fees_arbitrage = []
+        self.volume_retail = []
+        self.volume_arbitrage = []
 
     def copy(self):
         return deepcopy(self)

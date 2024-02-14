@@ -229,8 +229,8 @@ class PPO:
             "--------------------------------------------------------------------------------------------"
         )
         if self.has_continuous_action_space:
-            self.action_std = self.action_std - action_std_decay_rate
-            # self.action_std *= action_std_decay_rate
+            # self.action_std = self.action_std - action_std_decay_rate
+            self.action_std *= action_std_decay_rate
             self.action_std = round(self.action_std, 4)
             if self.action_std <= min_action_std:
                 self.action_std = min_action_std

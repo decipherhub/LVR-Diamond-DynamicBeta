@@ -10,24 +10,29 @@ from dynamic_fee import (
     calculate_dynamic_beta,
 )
 
-np.random.seed(123)
-
 
 class Simulator:
+    liquidity_pools: list[LiquidityPool] = []
+    oracle: Oracle = []
+    volatility: list[float] = []
+    blocks_per_day: int
+    num_days: int
+    tx_fee_per_eth: float
+    new_liquidity: float
+    new_liquidity_period: int
+
     def __init__(
         self,
         blocks_per_day: int,
         num_days: int,
-        tx_fee: float,
+        tx_fee_per_eth: float,
         new_liquidity: float,
         new_liquidity_period: int,
     ):
-        self.liquidity_pools: list[LiquidityPool] = []
-        self.oracle: Oracle = []
-        self.volatility: list[float] = []
+
         self.blocks_per_day = blocks_per_day
         self.num_days = num_days
-        self.tx_fee = tx_fee
+        self.tx_fee_per_eth = tx_fee_per_eth
         self.new_liquidity = new_liquidity
         self.new_liquidity_period = new_liquidity_period
 
@@ -76,11 +81,12 @@ class Simulator:
 
         self.liquidity_pools.append(diamond_pool)
 
-    def create_oracle(self, sigma_per_day: float):
+    def create_oracle(self, initial_price: float, sigma_per_day: float):
         """
         Create an oracle for the liquidity pool using geometric Brownian motion.
 
         Args:
+            initial_price (float): The initial price of the asset.
             sigma_per_day (float): The volatility of the asset per day.
         """
         mu = 0.0
@@ -97,7 +103,9 @@ class Simulator:
 
         price_path_eth = np.insert(price_path_eth, 0, 1.0)
         price_path_eth = price_path_eth.cumprod()
-        price_path_eth = price_path_eth * 1000 / price_path_eth[self.blocks_per_day * 2]
+        price_path_eth = (
+            price_path_eth * initial_price / price_path_eth[self.blocks_per_day * 2]
+        )
 
         price_path_usdc = np.ones((self.num_days + 2) * self.blocks_per_day)
 
@@ -136,7 +144,7 @@ class Simulator:
                     pool.after_swap(pool, price_feed, block_num)
 
             else:
-                perform_arbitrage(pool, price_feed, self.tx_fee)
+                perform_arbitrage(pool, price_feed, self.tx_fee_per_eth)
 
     def run_block(self, block_num: int):
         self.simulate_pool(self.liquidity_pools, block_num)

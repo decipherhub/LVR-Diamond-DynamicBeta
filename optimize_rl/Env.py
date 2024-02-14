@@ -38,7 +38,10 @@ class LVREnv(gym.Env):
         # Execute one time step within the environment
         self._take_action(action)
 
-        reward = self._calculate_value() - 1
+        ratio1, ratio2 = self._calculate_value()
+
+        # reward = ratio1 - 1 + ratio2 - 1
+        reward = ratio2 - 1
 
         # reward *= self.current_step / MAX_STEPS
 
@@ -54,6 +57,7 @@ class LVREnv(gym.Env):
         # Reset the state of the environment to an initial state
 
         self.sim = create_simulation()
+        self.sim.liquidity_pools[2].dynamic_beta = False
         self.current_step = 0
 
         return self._next_observation()
@@ -66,7 +70,10 @@ class LVREnv(gym.Env):
         tvl_of_dynamic_beta = self.sim.liquidity_pools[2].total_value_locked(
             self.sim.oracle[self.current_step]
         )
+        tvl_of_diamond = self.sim.liquidity_pools[1].total_value_locked(
+            self.sim.oracle[self.current_step]
+        )
         tvl_of_cfmm = self.sim.liquidity_pools[0].total_value_locked(
             self.sim.oracle[self.current_step]
         )
-        return tvl_of_dynamic_beta / tvl_of_cfmm
+        return tvl_of_dynamic_beta / tvl_of_cfmm, tvl_of_dynamic_beta / tvl_of_diamond

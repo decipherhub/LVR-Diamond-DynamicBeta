@@ -124,4 +124,6 @@ def calculate_dynamic_beta(volatility: float) -> float:
 
     # dynamic_beta_with_regulator = custom_sigmoid(volume_per_liquidity, dynamic_fee, VOLUME_GAMMA, VOLUME_BETA)
 
-    return (initial_min_beta + dynamic_beta) * 100
+    # print(min((initial_min_beta + dynamic_beta) * 7000, 1))
+
+    return min((initial_min_beta + dynamic_beta) * 7000, 1)
