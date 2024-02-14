@@ -44,16 +44,16 @@ def core_protocol(pool: DiamondPool, price_feed: PriceFeed, tx_fee_per_eth: floa
             # excess token_x is moved to the vault
             pool.vault.reserve[token_x] += target_reserve_x - pool.reserve_x
 
-            pool.volume_arbitrage.append(abs(delta_x) * price_feed[token_x])
+            pool.volume_arbitrage += abs(delta_x) * price_feed[token_x]
         elif delta_y < 0:  # arbitrageur buys token_y and sells token_x
             pool.vault.reserve[token_y] += abs(delta_y) * beta
             pool.reserve[token_x] += delta_x * (1 - beta)
             pool.reserve[token_y] = pool.reserve_x * target_price
             pool.vault.reserve[token_y] += target_reserve_y - pool.reserve_y
 
-            pool.volume_arbitrage.append(abs(delta_y) * price_feed[token_y])
+            pool.volume_arbitrage += abs(delta_y) * price_feed[token_y]
 
-        pool.lvr.append(lp_loss_vs_cex)  # account without swap fees and tx fees
+        pool.lvr += lp_loss_vs_cex  # account without swap fees and tx fees
 
 
 def vault_rebalancing(pool: LiquidityPool, price_feed: PriceFeed):

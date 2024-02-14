@@ -96,8 +96,8 @@ def multi_pool_random_swap(pools: list[LiquidityPool], price_feed: PriceFeed):
             pool.swap(token_y, swap_size)
 
         swap_fee = swap_size * price_feed[token_y] * pool.fee
-        pool.collected_fees_retail.append(swap_fee)
-        pool.volume_retail.append(swap_size * price_feed[token_y])
+        pool.collected_fees_retail += swap_fee
+        pool.volume_retail += swap_size * price_feed[token_y]
 
 
 def compute_profit_maximizing_trade(
@@ -172,9 +172,9 @@ def perform_arbitrage(
         arbitrageur_profit = lp_loss_vs_cex - swap_fee - tx_fee
         if arbitrageur_profit > 0:
             pool.swap(token_x, arb_amount)
-            pool.lvr.append(lp_loss_vs_cex)  # account without swap fees and tx fees
-            pool.collected_fees_arbitrage.append(swap_fee)
-            pool.volume_arbitrage.append(arb_amount * price_feed[token_x])
+            pool.lvr += lp_loss_vs_cex  # account without swap fees and tx fees
+            pool.collected_fees_arbitrage += swap_fee
+            pool.volume_arbitrage += arb_amount * price_feed[token_x]
     else:  # Arbitrageur sell token_y and buy token_x
         swap_fee = arb_amount * price_feed[token_y] * pool.fee
         lp_loss_vs_cex = (
@@ -184,6 +184,6 @@ def perform_arbitrage(
         arbitrageur_profit = lp_loss_vs_cex - swap_fee - tx_fee
         if arbitrageur_profit > 0:
             pool.swap(token_y, arb_amount)
-            pool.lvr.append(lp_loss_vs_cex)
-            pool.collected_fees_arbitrage.append(swap_fee)
-            pool.volume_arbitrage.append(arb_amount * price_feed[token_y])
+            pool.lvr += lp_loss_vs_cex
+            pool.collected_fees_arbitrage += swap_fee
+            pool.volume_arbitrage += arb_amount * price_feed[token_y]

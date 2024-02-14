@@ -12,15 +12,6 @@ from dynamic_fee import (
 
 
 class Simulator:
-    liquidity_pools: list[LiquidityPool] = []
-    oracle: Oracle = []
-    volatility: list[float] = []
-    blocks_per_day: int
-    num_days: int
-    tx_fee_per_eth: float
-    new_liquidity: float
-    new_liquidity_period: int
-
     def __init__(
         self,
         blocks_per_day: int,
@@ -29,12 +20,14 @@ class Simulator:
         new_liquidity: float,
         new_liquidity_period: int,
     ):
-
-        self.blocks_per_day = blocks_per_day
-        self.num_days = num_days
-        self.tx_fee_per_eth = tx_fee_per_eth
-        self.new_liquidity = new_liquidity
-        self.new_liquidity_period = new_liquidity_period
+        self.liquidity_pools: list[LiquidityPool] = []
+        self.oracle: Oracle = []
+        self.volatility: list[float] = []
+        self.blocks_per_day: int = blocks_per_day
+        self.num_days: int = num_days
+        self.tx_fee_per_eth: float = tx_fee_per_eth
+        self.new_liquidity: float = new_liquidity
+        self.new_liquidity_period: int = new_liquidity_period
 
     def create_liquidity_pool(
         self,
@@ -151,19 +144,32 @@ class Simulator:
 
     def print_snapshot(self, block_num: int):
         print(f"Block {block_num}------------------------------------")
+        for pool_snapshot in self.current_snapshot():
+            print("Oracle Price", self.oracle[block_num])
+            print(pool_snapshot)
+
+    def current_snapshot(self):
+        snapshot = []
         for pool in self.liquidity_pools:
             is_diamond = isinstance(pool, DiamondPool)
-            print(f"Type of Pool: {'Diamond' if is_diamond else 'Liquidity'}")
-            print(f"{pool.token_x} Reserve: {pool.reserve_x:,.2f}")
-            print(f"{pool.token_y} Reserve: {pool.reserve_y:,.2f}")
-            print(f"Pool Price: {pool.price:,.2f}")
-            print(f"Oracle Price: {self.oracle[block_num][pool.token_x]:,.2f}")
-            print(f"TVL: {pool.total_value_locked(self.oracle[block_num]):,.2f}")
-            print(f"LVR: {pool.lvr:,.2f}")
-            print(f"Collected Fees: {pool.collected_fees:,.2f}")
-            if is_diamond:
-                print(f"Vault {pool.token_x} Reserve: {pool.vault.reserve_x:,.2f}")
-                print(f"Vault {pool.token_y} Reserve: {pool.vault.reserve_y:,.2f}")
+            snapshot.append(
+                {
+                    "Type of Pool": "Diamond" if is_diamond else "Liquidity",
+                    "Token_x Reserve": pool.reserve_x,
+                    "Token_y Reserve": pool.reserve_y,
+                    "Pool Price": pool.price,
+                    "TVL": pool.total_value_locked(self.oracle[-1]),
+                    "LVR": pool.lvr,
+                    "Collected Fees": pool.collected_fees_retail
+                    + pool.collected_fees_arbitrage,
+                    "Collected Fees Retail": pool.collected_fees_retail,
+                    "Collected Fees Arbitrage": pool.collected_fees_arbitrage,
+                    "Volume": pool.volume_retail + pool.volume_arbitrage,
+                    "Volume Retail": pool.volume_retail,
+                    "Volume Arbitrage": pool.volume_arbitrage,
+                }
+            )
+        return snapshot
 
     def run(self, verbose: bool = False):
         if verbose:

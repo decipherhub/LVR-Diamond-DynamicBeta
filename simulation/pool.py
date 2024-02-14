@@ -8,12 +8,10 @@ from custom_types import Token, PriceFeed
 
 @dataclass
 class Vault:
-    token_x: Token
-    token_y: Token
-    reserve: dict[Token, float] = field(init=False)
-
-    def __post_init__(self):
-        self.reserve = {self.token_x: 0, self.token_y: 0}
+    def __init__(self, token_x: Token, token_y: Token):
+        self.token_x: Token = token_x
+        self.token_y: Token = token_y
+        self.reserve: dict[Token, float] = {self.token_x: 0, self.token_y: 0}
 
     @property
     def reserve_x(self) -> float:
@@ -26,28 +24,17 @@ class Vault:
 
 @dataclass
 class LiquidityPool:
-    token_x: Token
-    token_y: Token
-    reserve: dict[Token, float] = field(init=False)
-    fee: float
-    dynamic_fee: bool
-    lvr: list[float]
-    collected_fees_retail: list[float]
-    collected_fees_arbitrage: list[float]
-    volume_retail: list[float]
-    volume_arbitrage: list[float]
-
     def __init__(self, token_x, token_y, fee, dynamic_fee):
-        self.token_x = token_x
-        self.token_y = token_y
-        self.fee = fee
-        self.dynamic_fee = dynamic_fee
-        self.reserve = {self.token_x: 0, self.token_y: 0}
-        self.lvr = []
-        self.collected_fees_retail = []
-        self.collected_fees_arbitrage = []
-        self.volume_retail = []
-        self.volume_arbitrage = []
+        self.token_x: Token = token_x
+        self.token_y: Token = token_y
+        self.fee: float = fee
+        self.dynamic_fee: bool = dynamic_fee
+        self.reserve: dict[Token, float] = {self.token_x: 0, self.token_y: 0}
+        self.lvr: float = 0
+        self.collected_fees_retail: float = 0
+        self.collected_fees_arbitrage: float = 0
+        self.volume_retail: float = 0
+        self.volume_arbitrage: float = 0
 
     def copy(self):
         return deepcopy(self)
@@ -130,12 +117,6 @@ class LiquidityPool:
 
 @dataclass
 class DiamondPool(LiquidityPool):
-    beta: float
-    dynamic_beta: bool
-    before_swap: Optional[Callable] = None
-    after_swap: Optional[Callable] = None
-    vault: Vault = field(init=False)
-
     def __init__(
         self,
         token_x,
@@ -148,8 +129,8 @@ class DiamondPool(LiquidityPool):
         after_swap: Optional[Callable] = None,
     ):
         super().__init__(token_x, token_y, fee, dynamic_fee)
-        self.beta = beta
-        self.dynamic_beta = dynamic_beta
+        self.beta: float = beta
+        self.dynamic_beta: bool = dynamic_beta
         self.before_swap = before_swap
         self.after_swap = after_swap
         self.vault = Vault(token_x, token_y)

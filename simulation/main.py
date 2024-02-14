@@ -96,25 +96,24 @@ if __name__ == "__main__":
 
         new_row = {}
         new_row["Price"] = sim.oracle[-1][Token.ETH] / sim.oracle[-1][Token.USDC]
-        for j, pool in enumerate(sim.liquidity_pools):
-            new_row[f"TVL_{j+1}"] = pool.total_value_locked(sim.oracle[-1])
-            new_row[f"LVR_{j+1}"] = sum(pool.lvr)
-            new_row[f"Collected_Fees_{j+1}"] = sum(pool.collected_fees_retail) + sum(
-                pool.collected_fees_arbitrage
-            )
-            new_row[f"Collected_Fees_Retail_{j+1}"] = sum(pool.collected_fees_retail)
-            new_row[f"Collected_Fees_Arbitrage_{j+1}"] = sum(
-                pool.collected_fees_arbitrage
-            )
-            new_row[f"Volume_{j+1}"] = sum(pool.volume_retail) + sum(
-                pool.volume_arbitrage
-            )
-            new_row[f"Volume_Retail_{j+1}"] = sum(pool.volume_retail)
-            new_row[f"Volume_Arbitrage_{j+1}"] = sum(pool.volume_arbitrage)
+        for j, pool_snapshot in enumerate(sim.current_snapshot()):
+            new_row[f"TVL_{j+1}"] = pool_snapshot["TVL"]
+            new_row[f"LVR_{j+1}"] = pool_snapshot["LVR"]
+            new_row[f"Collected_Fees_{j+1}"] = pool_snapshot["Collected Fees"]
+            new_row[f"Collected_Fees_Retail_{j+1}"] = pool_snapshot[
+                "Collected Fees Retail"
+            ]
+            new_row[f"Collected_Fees_Arbitrage_{j+1}"] = pool_snapshot[
+                "Collected Fees Arbitrage"
+            ]
+            new_row[f"Volume_{j+1}"] = pool_snapshot["Volume"]
+            new_row[f"Volume_Retail_{j+1}"] = pool_snapshot["Volume Retail"]
+            new_row[f"Volume_Arbitrage_{j+1}"] = pool_snapshot["Volume Arbitrage"]
         tvls = [pool.total_value_locked(sim.oracle[-1]) for pool in sim.liquidity_pools]
         best_pool = tvls.index(max(tvls))
         new_row["Best Pool"] = best_pool + 1
         new_row["Best Pool TVL/CFMM"] = tvls[best_pool] / tvls[0]
+
         result = pd.concat([result, pd.DataFrame([new_row])], ignore_index=True)
 
         print(f"Simulation {i} took {time.time() - start_time} seconds")
