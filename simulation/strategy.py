@@ -163,27 +163,27 @@ def perform_arbitrage(
         price_feed[token_x], price_feed[token_y], pool
     )
 
-    if x_to_y:  # Arbitrageur sell token_x and buys token_y
+    if x_to_y:
+        delta_x = arb_amount
+        delta_y = -pool.get_amount_out(token_x, arb_amount)
         swap_fee = arb_amount * price_feed[token_x] * pool.fee
-        lp_loss_vs_cex = (
-            pool.get_amount_out(token_x, arb_amount) * price_feed[token_y]
-            - arb_amount * price_feed[token_x]
-        ) + swap_fee
-        arbitrageur_profit = lp_loss_vs_cex - swap_fee - tx_fee
-        if arbitrageur_profit > 0:
-            pool.swap(token_x, arb_amount)
-            pool.lvr += lp_loss_vs_cex  # account without swap fees and tx fees
-            pool.collected_fees_arbitrage += swap_fee
-            pool.volume_arbitrage += arb_amount * price_feed[token_x]
-    else:  # Arbitrageur sell token_y and buy token_x
+    else:
+        delta_x = -pool.get_amount_out(token_y, arb_amount)
+        delta_y = arb_amount
         swap_fee = arb_amount * price_feed[token_y] * pool.fee
-        lp_loss_vs_cex = (
-            pool.get_amount_out(token_y, arb_amount) * price_feed[token_x]
-            - arb_amount * price_feed[token_y]
-        ) + swap_fee
-        arbitrageur_profit = lp_loss_vs_cex - swap_fee - tx_fee
-        if arbitrageur_profit > 0:
+
+    lp_loss_vs_cex = (
+        -1 * (delta_x * price_feed[token_x] + delta_y * price_feed[token_y]) + swap_fee
+    )
+
+    arbitrageur_profit = lp_loss_vs_cex - swap_fee - tx_fee
+    if arbitrageur_profit > 0:
+        if x_to_y:  # Arbitrageur sell token_x and buys token_y
+            pool.swap(token_x, arb_amount)
+            pool.volume_arbitrage += arb_amount * price_feed[token_x]
+        else:  # Arbitrageur sell token_y and buy token_x
             pool.swap(token_y, arb_amount)
-            pool.lvr += lp_loss_vs_cex
-            pool.collected_fees_arbitrage += swap_fee
             pool.volume_arbitrage += arb_amount * price_feed[token_y]
+
+        pool.lvr += lp_loss_vs_cex  # account without swap fees and tx fees
+        pool.collected_fees_arbitrage += swap_fee

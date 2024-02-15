@@ -6,6 +6,7 @@ import time
 from custom_types import Token
 from simulator import Simulator
 from diamond_protocol import core_protocol, vault_rebalancing, vault_conversion
+from dynamic_fee import calculate_dynamic_beta
 
 # assume 12 second blocks as in the mainnet
 BLOCKS_PER_DAY = 86400 // 12
@@ -19,11 +20,7 @@ NEW_LIQUIDITY = V0 / 1000
 NEW_LIQUIDITY_PERIOD = 0
 
 
-def diamond_before_swap(pool, price_feed, block_num):
-    pass
-
-
-def diamond_after_swap(pool, price_feed, block_num):
+def diamond_after_swap(pool, price_feed, volatility, block_num):
     core_protocol(pool, price_feed, TX_FEE_PER_ETH)
 
     vault_rebalancing(pool, price_feed)
@@ -31,23 +28,26 @@ def diamond_after_swap(pool, price_feed, block_num):
         vault_conversion(pool, price_feed)
 
 
+def dynamic_after_swap(pool, price_feed, volatility, block_num):
+    pool.beta = calculate_dynamic_beta(volatility)
+    diamond_after_swap(pool, price_feed, volatility, block_num)
+
+
 def create_simulation():
     sim = Simulator(
         BLOCKS_PER_DAY, NUM_DAYS, TX_FEE_PER_ETH, NEW_LIQUIDITY, NEW_LIQUIDITY_PERIOD
     )
 
-    sim.create_liquidity_pool(Token.ETH, Token.USDC, RESERVE_X, RESERVE_Y, 0.003, False)
+    sim.create_liquidity_pool(Token.ETH, Token.USDC, RESERVE_X, RESERVE_Y, 0.003)
     sim.create_diamond_pool(
         Token.ETH,
         Token.USDC,
         RESERVE_X,
         RESERVE_Y,
         0.003,
-        False,
-        0.9,
-        False,
         None,
         diamond_after_swap,
+        0.2,
     )
     sim.create_diamond_pool(
         Token.ETH,
@@ -55,11 +55,9 @@ def create_simulation():
         RESERVE_X,
         RESERVE_Y,
         0.003,
-        False,
-        0.75,
-        True,
         None,
-        diamond_after_swap,
+        dynamic_after_swap,
+        0.2,
     )
 
     sim.create_oracle(INITIAL_PRICE, 0.05)

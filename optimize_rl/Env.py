@@ -27,25 +27,36 @@ class LVREnv(gym.Env):
         )  # volatility
 
     def _next_observation(self):
-        return self.sim.volatility[self.current_step]
+        mean_volatilities = 372.3109369150782
+        std_volatilities = 287.00165015363797
+        return (
+            self.sim.volatility[self.current_step] - mean_volatilities
+        ) / std_volatilities
 
     def _take_action(self, action):
         beta = action[0]
         self.sim.liquidity_pools[2].beta = beta
-        self.sim.run_block(self.current_step)
+        self.sim.after_swap(self.current_step)
 
     def step(self, action):
         # Execute one time step within the environment
+        before_tvl_dynamic, before_tvl_diamond = self._calculate_value()
+
         self._take_action(action)
 
-        ratio1, ratio2 = self._calculate_value()
+        self.current_step += 1
 
-        # reward = ratio1 - 1 + ratio2 - 1
-        reward = ratio2 - 1
+        self.sim.before_swap(self.current_step)
+        self.sim.retail_swap(self.current_step)
+
+        after_tvl_dynamic, after_tvl_diamond = self._calculate_value()
+
+        reward = (
+            after_tvl_dynamic / before_tvl_dynamic
+            - after_tvl_diamond / before_tvl_diamond
+        ) * 1e6
 
         # reward *= self.current_step / MAX_STEPS
-
-        self.current_step += 1
 
         done = self.current_step == len(self.sim.oracle) - 1
 
@@ -57,8 +68,11 @@ class LVREnv(gym.Env):
         # Reset the state of the environment to an initial state
 
         self.sim = create_simulation()
-        self.sim.liquidity_pools[2].dynamic_beta = False
+        self.sim.liquidity_pools[2].before_swap = None
         self.current_step = 0
+
+        self.sim.before_swap(self.current_step)
+        self.sim.retail_swap(self.current_step)
 
         return self._next_observation()
 
@@ -76,4 +90,4 @@ class LVREnv(gym.Env):
         tvl_of_cfmm = self.sim.liquidity_pools[0].total_value_locked(
             self.sim.oracle[self.current_step]
         )
-        return tvl_of_dynamic_beta / tvl_of_cfmm, tvl_of_dynamic_beta / tvl_of_diamond
+        return tvl_of_dynamic_beta, tvl_of_diamond

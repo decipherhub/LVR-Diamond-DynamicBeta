@@ -4,11 +4,7 @@ from typing import Optional, Callable
 from custom_types import Token, Oracle
 from pool import LiquidityPool, DiamondPool
 from strategy import multi_pool_random_swap, perform_arbitrage
-from dynamic_fee import (
-    calculate_volatility,
-    calculate_dynamic_fee,
-    calculate_dynamic_beta,
-)
+from dynamic_fee import calculate_volatility
 
 
 class Simulator:
@@ -36,9 +32,8 @@ class Simulator:
         reserve_x: float,
         reserve_y: float,
         fee: float,
-        dyanmic_fee: bool,
     ):
-        liquidity_pool = LiquidityPool(token_x, token_y, fee, dyanmic_fee)
+        liquidity_pool = LiquidityPool(token_x, token_y, fee)
 
         liquidity_pool.add_liquidity(token_x, reserve_x)
         liquidity_pool.add_liquidity(token_y, reserve_y)
@@ -52,21 +47,17 @@ class Simulator:
         reserve_x: float,
         reserve_y: float,
         fee: float,
-        dynamic_fee: bool,
+        before_swap: Optional[Callable],
+        after_swap: Optional[Callable],
         beta: float,
-        dynamic_beta: bool,
-        beforeHook: Optional[Callable] = None,
-        afterHook: Optional[Callable] = None,
     ):
         diamond_pool = DiamondPool(
             token_x,
             token_y,
             fee,
-            dynamic_fee,
+            before_swap,
+            after_swap,
             beta,
-            dynamic_beta,
-            beforeHook,
-            afterHook,
         )
 
         diamond_pool.add_liquidity(token_x, reserve_x)
@@ -109,38 +100,43 @@ class Simulator:
         self.volatility = calculate_volatility(
             Token.ETH, Token.USDC, self.oracle, self.blocks_per_day
         )
+
         self.oracle = self.oracle[self.blocks_per_day * 2 :]
 
-    def simulate_pool(self, pools: list[LiquidityPool], block_num: int):
-        price_feed = self.oracle[block_num]
-
-        # Before Swaps
-        for pool in pools:
+    def before_swap(self, block_num: int):
+        for pool in self.liquidity_pools:
             if isinstance(pool, DiamondPool):
-                if pool.dynamic_beta:
-                    pool.beta = calculate_dynamic_beta(self.volatility[block_num])
-                    # print(pool.beta)
                 if pool.before_swap:
-                    pool.before_swap(pool, price_feed, block_num)
-            else:
-                if pool.dynamic_fee:
-                    pool.fee = calculate_dynamic_fee(self.volatility[block_num])
-                    # print(pool.fee)
+                    pool.before_swap(
+                        pool,
+                        self.oracle[block_num],
+                        self.volatility[block_num],
+                        block_num,
+                    )
 
-        # Retail Swaps
-        multi_pool_random_swap(pools, price_feed)
+    def retail_swap(self, block_num: int):
+        multi_pool_random_swap(self.liquidity_pools, self.oracle[block_num])
 
-        # After Swaps
-        for pool in pools:
+    def after_swap(self, block_num: int):
+        for pool in self.liquidity_pools:
             if isinstance(pool, DiamondPool):
                 if pool.after_swap:
-                    pool.after_swap(pool, price_feed, block_num)
-
+                    pool.after_swap(
+                        pool,
+                        self.oracle[block_num],
+                        self.volatility[block_num],
+                        block_num,
+                    )
             else:
-                perform_arbitrage(pool, price_feed, self.tx_fee_per_eth)
+                perform_arbitrage(pool, self.oracle[block_num], self.tx_fee_per_eth)
 
     def run_block(self, block_num: int):
-        self.simulate_pool(self.liquidity_pools, block_num)
+        # Before Swaps
+        self.before_swap(block_num)
+        # Retail Swaps
+        self.retail_swap(block_num)
+        # After Swaps
+        self.after_swap(block_num)
 
     def print_snapshot(self, block_num: int):
         print(f"Block {block_num}------------------------------------")

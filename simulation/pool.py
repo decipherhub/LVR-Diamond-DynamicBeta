@@ -24,11 +24,15 @@ class Vault:
 
 @dataclass
 class LiquidityPool:
-    def __init__(self, token_x, token_y, fee, dynamic_fee):
+    def __init__(
+        self,
+        token_x,
+        token_y,
+        fee,
+    ):
         self.token_x: Token = token_x
         self.token_y: Token = token_y
         self.fee: float = fee
-        self.dynamic_fee: bool = dynamic_fee
         self.reserve: dict[Token, float] = {self.token_x: 0, self.token_y: 0}
         self.lvr: float = 0
         self.collected_fees_retail: float = 0
@@ -122,17 +126,14 @@ class DiamondPool(LiquidityPool):
         token_x,
         token_y,
         fee,
-        dynamic_fee,
+        before_swap: Optional[Callable],
+        after_swap: Optional[Callable],
         beta,
-        dynamic_beta,
-        before_swap: Optional[Callable] = None,
-        after_swap: Optional[Callable] = None,
     ):
-        super().__init__(token_x, token_y, fee, dynamic_fee)
-        self.beta: float = beta
-        self.dynamic_beta: bool = dynamic_beta
+        super().__init__(token_x, token_y, fee)
         self.before_swap = before_swap
         self.after_swap = after_swap
+        self.beta: float = beta
         self.vault = Vault(token_x, token_y)
 
     # override total_value_locked
