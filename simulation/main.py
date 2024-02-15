@@ -90,7 +90,7 @@ if __name__ == "__main__":
         print(f"Running simulation {i}")
 
         sim = create_simulation()
-        sim.run(verbose=False)
+        sim.run(verbose=True)
 
         new_row = {}
         new_row["Price"] = sim.oracle[-1][Token.ETH] / sim.oracle[-1][Token.USDC]

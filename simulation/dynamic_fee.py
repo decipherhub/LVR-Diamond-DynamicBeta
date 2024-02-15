@@ -66,10 +66,10 @@ def calculate_volatility(
 
 
 def custom_sigmoid(x, alpha, gamma, beta):
-    if gamma * abs(beta - x) > 700:
+    if gamma * (beta - x) > 700:
         return alpha / (1 + exp(700))
 
-    return alpha / (1 + exp(gamma * abs(beta - x)))
+    return alpha / (1 + exp(gamma * (beta - x)))
 
 
 # def calculate_dynamic_fee(volatility: float) -> float:

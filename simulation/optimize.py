@@ -61,8 +61,6 @@ def create_simulation(dynamic_after_swap):
 
 if __name__ == "__main__":
 
-    np.random.seed(123)
-
     num_pools = 3
 
     INITIAL_MIN_FEES = 0.01 / 100
@@ -83,20 +81,111 @@ if __name__ == "__main__":
     range_gamma1 = [1 / 590, 1 / 59, 1 / 5.9]
     range_gamma2 = [1 / 85000, 1 / 8500, 1 / 850]
 
-    def dynamic_after_swap(pool, price_feed, volatility, block_num):
-        pool.beta = calculate_dynamic_beta(volatility)
-        diamond_after_swap(pool, price_feed, volatility, block_num)
+    # Make parameter set
+    parameters = []
+    for initial_min_fees in range_initial_min_fees:
+        for alpha1 in range_alpha1:
+            for alpha2 in range_alpha2:
+                for beta1 in range_beta1:
+                    for beta2 in range_beta2:
+                        for gamma1 in range_gamma1:
+                            for gamma2 in range_gamma2:
+                                parameters.append(
+                                    (
+                                        initial_min_fees,
+                                        alpha1,
+                                        alpha2,
+                                        beta1,
+                                        beta2,
+                                        gamma1,
+                                        gamma2,
+                                    )
+                                )
 
-    for i in range(10):
+    # Shuffle parameter set
+    np.random.shuffle(parameters)
+
+    results = pd.DataFrame(
+        columns=[
+            "initial_min_fees",
+            "alpha1",
+            "alpha2",
+            "beta1",
+            "beta2",
+            "gamma1",
+            "gamma2",
+            "tvl_ratio",
+        ]
+    )
+
+    while len(parameters) > 0:
+        # Choose parameter set Randomly
+        initial_min_fees, alpha1, alpha2, beta1, beta2, gamma1, gamma2 = parameters.pop(
+            0
+        )
+        print(
+            f"Running simulation with parameters: {initial_min_fees}, {alpha1}, {alpha2}, {beta1}, {beta2}, {gamma1}, {gamma2}"
+        )
         start_time = time.time()
-        print(f"Running simulation {i}")
 
-        sim = create_simulation(dynamic_after_swap)
-        sim.run(verbose=False)
+        def dynamic_after_swap(pool, price_feed, volatility, block_num):
+            pool.beta = calculate_dynamic_beta(
+                volatility,
+                initial_min_fees,
+                alpha1,
+                alpha2,
+                beta1,
+                beta2,
+                gamma1,
+                gamma2,
+            )
+            diamond_after_swap(pool, price_feed, volatility, block_num)
 
-        print(f"Simulation {i} took {time.time() - start_time} seconds")
+        tvl_ratio = []
+        for i in range(10):
+            sim = create_simulation(dynamic_after_swap)
+            sim.run(verbose=False)
+            tvl_ratio.append(
+                sim.liquidity_pools[2].total_value_locked(sim.oracle[-1])
+                / sim.liquidity_pools[1].total_value_locked(sim.oracle[-1])
+            )
+
+        print(f"Simulation took {time.time() - start_time} seconds")
+        print(f"TVL ratio: {np.mean(tvl_ratio)}")
+        results = pd.concat(
+            [
+                results,
+                pd.DataFrame(
+                    [
+                        [
+                            initial_min_fees,
+                            alpha1,
+                            alpha2,
+                            beta1,
+                            beta2,
+                            gamma1,
+                            gamma2,
+                            np.mean(tvl_ratio),
+                        ]
+                    ],
+                    columns=[
+                        "initial_min_fees",
+                        "alpha1",
+                        "alpha2",
+                        "beta1",
+                        "beta2",
+                        "gamma1",
+                        "gamma2",
+                        "tvl_ratio",
+                    ],
+                ),
+            ],
+            ignore_index=True,
+        )
 
     if not os.path.exists("results"):
         os.makedirs("results")
 
-    result.to_csv("results/result_test.csv")
+    # Sort results by tvl_ratio
+    results = results.sort_values("tvl_ratio", ascending=False)
+    results.to_csv("results/optimize.csv")

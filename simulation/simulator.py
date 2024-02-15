@@ -140,8 +140,8 @@ class Simulator:
 
     def print_snapshot(self, block_num: int):
         print(f"Block {block_num}------------------------------------")
+        print("Oracle Price", self.oracle[block_num])
         for pool_snapshot in self.current_snapshot():
-            print("Oracle Price", self.oracle[block_num])
             print(pool_snapshot)
 
     def current_snapshot(self):
