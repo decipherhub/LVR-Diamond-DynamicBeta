@@ -52,13 +52,13 @@ def train():
     update_timestep = max_ep_len * 4  # update policy every n timesteps
     K_epochs = 80  # update policy for K epochs in one PPO update
 
-    eps_clip = 0.2  # clip parameter for PPO
+    eps_clip = 0.3  # clip parameter for PPO
     gamma = 0.99  # discount factor
 
-    lr_actor = 0.0003  # learning rate for actor network
-    # lr_actor = 0.001
-    lr_critic = 0.001  # learning rate for critic network
-    # lr_critic = 0.003
+    # lr_actor = 0.0003  # learning rate for actor network
+    lr_actor = 0.001
+    # lr_critic = 0.001  # learning rate for critic network
+    lr_critic = 0.003
 
     random_seed = 0  # set random seed if required (0 = no random seed)
     #####################################################

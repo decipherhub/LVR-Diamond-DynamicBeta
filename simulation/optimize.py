@@ -28,9 +28,22 @@ def diamond_after_swap(pool, price_feed, volatility, block_num):
         vault_conversion(pool, price_feed)
 
 
-def create_simulation(dynamic_after_swap):
+def dynamic_after_swap(pool, price_feed, volatility, block_num):
+    pass
+
+
+def create_simulation(
+    blocks_per_day=BLOCKS_PER_DAY,
+    num_days=NUM_DAYS,
+    tx_fee_per_eth=TX_FEE_PER_ETH,
+    new_liquidity=NEW_LIQUIDITY,
+    new_liquidity_period=NEW_LIQUIDITY_PERIOD,
+    beta=0.75,
+    diamond_after_swap=diamond_after_swap,
+    dynamic_after_swap=dynamic_after_swap,
+) -> Simulator:
     sim = Simulator(
-        BLOCKS_PER_DAY, NUM_DAYS, TX_FEE_PER_ETH, NEW_LIQUIDITY, NEW_LIQUIDITY_PERIOD
+        blocks_per_day, num_days, tx_fee_per_eth, new_liquidity, new_liquidity_period
     )
 
     sim.create_liquidity_pool(Token.ETH, Token.USDC, RESERVE_X, RESERVE_Y, 0.003)
@@ -42,7 +55,7 @@ def create_simulation(dynamic_after_swap):
         0.003,
         None,
         diamond_after_swap,
-        0.9,
+        beta,
     )
     sim.create_diamond_pool(
         Token.ETH,
@@ -52,7 +65,7 @@ def create_simulation(dynamic_after_swap):
         0.003,
         None,
         dynamic_after_swap,
-        0.9,
+        beta,
     )
 
     sim.create_oracle(INITIAL_PRICE, 0.05)
@@ -63,22 +76,12 @@ if __name__ == "__main__":
 
     num_pools = 3
 
-    INITIAL_MIN_FEES = 0.01 / 100
-    ALPHA1 = 3000 / 1000000
-    ALPHA2 = (15000 - 3000) / 1000000
-    BETA1 = 360
-    BETA2 = 60000
-    GAMMA1 = 1 / 59
-    GAMMA2 = 1 / 8500
-    VOLUME_BETA = 0
-    VOLUME_GAMMA = 0
-
-    range_initial_min_fees = [0.0001, 0.01, 0.1]
-    range_alpha1 = [0.003, 0.3, 3]
-    range_alpha2 = [0.012, 0.12, 1.2]
-    range_beta1 = [36, 360, 3600]
-    range_beta2 = [600, 6000, 60000]
-    range_gamma1 = [1 / 590, 1 / 59, 1 / 5.9]
+    range_initial_min_fees = [0.01, 0.05, 0.1, 0.15, 0.2]
+    range_alpha1 = np.arange(0.03, 0.6, 0.03)
+    range_alpha2 = [0.0012, 0.012, 0.12, 1.2]
+    range_beta1 = np.arange(300, 420, 30)
+    range_beta2 = [600, 6000, 60000, 600000, 6000000]
+    range_gamma1 = [1 / 54, 1 / 59, 1 / 64]
     range_gamma2 = [1 / 85000, 1 / 8500, 1 / 850]
 
     # Make parameter set
@@ -105,18 +108,41 @@ if __name__ == "__main__":
     # Shuffle parameter set
     np.random.shuffle(parameters)
 
-    results = pd.DataFrame(
-        columns=[
-            "initial_min_fees",
-            "alpha1",
-            "alpha2",
-            "beta1",
-            "beta2",
-            "gamma1",
-            "gamma2",
-            "tvl_ratio",
-        ]
-    )
+    best_result = {
+        "initial_min_fees": 0,
+        "alpha1": 0,
+        "alpha2": 0,
+        "beta1": 0,
+        "beta2": 0,
+        "gamma1": 0,
+        "gamma2": 0,
+        "tvl_ratio": 0,
+    }
+
+    if not os.path.exists("results"):
+        os.makedirs("results")
+
+    if not os.path.exists("results/optimize.csv"):
+        log_f = open("results/optimize.csv", "w")
+        log_f.write(
+            "initial_min_fees, alpha1, alpha2, beta1, beta2, gamma1, gamma2, tvl_ratio\n"
+        )
+    else:
+        log_f = open("results/optimize.csv", "a")
+        # Remove already tested parameters
+        df = pd.read_csv("results/optimize.csv")
+        tested_parameters = df[
+            [
+                "initial_min_fees",
+                "alpha1",
+                "alpha2",
+                "beta1",
+                "beta2",
+                "gamma1",
+                "gamma2",
+            ]
+        ].values
+        parameters = [p for p in parameters if tuple(p) not in tested_parameters]
 
     while len(parameters) > 0:
         # Choose parameter set Randomly
@@ -128,7 +154,7 @@ if __name__ == "__main__":
         )
         start_time = time.time()
 
-        def dynamic_after_swap(pool, price_feed, volatility, block_num):
+        def custom_dynamic_after_swap(pool, price_feed, volatility, block_num):
             pool.beta = calculate_dynamic_beta(
                 volatility,
                 initial_min_fees,
@@ -143,7 +169,7 @@ if __name__ == "__main__":
 
         tvl_ratio = []
         for i in range(10):
-            sim = create_simulation(dynamic_after_swap)
+            sim = create_simulation(dynamic_after_swap=custom_dynamic_after_swap)
             sim.run(verbose=False)
             tvl_ratio.append(
                 sim.liquidity_pools[2].total_value_locked(sim.oracle[-1])
@@ -152,40 +178,22 @@ if __name__ == "__main__":
 
         print(f"Simulation took {time.time() - start_time} seconds")
         print(f"TVL ratio: {np.mean(tvl_ratio)}")
-        results = pd.concat(
-            [
-                results,
-                pd.DataFrame(
-                    [
-                        [
-                            initial_min_fees,
-                            alpha1,
-                            alpha2,
-                            beta1,
-                            beta2,
-                            gamma1,
-                            gamma2,
-                            np.mean(tvl_ratio),
-                        ]
-                    ],
-                    columns=[
-                        "initial_min_fees",
-                        "alpha1",
-                        "alpha2",
-                        "beta1",
-                        "beta2",
-                        "gamma1",
-                        "gamma2",
-                        "tvl_ratio",
-                    ],
-                ),
-            ],
-            ignore_index=True,
+        log_f.write(
+            f"{initial_min_fees}, {alpha1}, {alpha2}, {beta1}, {beta2}, {gamma1}, {gamma2}, {np.mean(tvl_ratio)}\n"
         )
+        log_f.flush()
 
-    if not os.path.exists("results"):
-        os.makedirs("results")
+        if np.mean(tvl_ratio) > best_result["tvl_ratio"]:
+            best_result = {
+                "initial_min_fees": initial_min_fees,
+                "alpha1": alpha1,
+                "alpha2": alpha2,
+                "beta1": beta1,
+                "beta2": beta2,
+                "gamma1": gamma1,
+                "gamma2": gamma2,
+                "tvl_ratio": np.mean(tvl_ratio),
+            }
+        print(f"Best result: {best_result}")
 
-    # Sort results by tvl_ratio
-    results = results.sort_values("tvl_ratio", ascending=False)
-    results.to_csv("results/optimize.csv")
+    log_f.close()

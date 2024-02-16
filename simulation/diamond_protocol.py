@@ -38,6 +38,7 @@ def core_protocol(pool: DiamondPool, price_feed: PriceFeed, tx_fee_per_eth: floa
     target_reserve_x = pool.reserve_x + delta_x
     target_reserve_y = pool.reserve_y + delta_y
 
+    swap_fee *= 1 - beta
     lp_loss_vs_cex = (
         -1
         * (1 - beta)

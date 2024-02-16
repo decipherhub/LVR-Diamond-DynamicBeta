@@ -2,7 +2,7 @@ from math import exp
 
 from custom_types import PriceFeed, Token
 
-INITIAL_MIN_FEES = 0.01 / 100
+INITIAL_MIN_FEES = 0.1 / 100
 ALPHA1 = 3000 / 1000000
 ALPHA2 = (15000 - 3000) / 1000000
 BETA1 = 360

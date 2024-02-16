@@ -10,7 +10,7 @@ from dynamic_fee import calculate_dynamic_beta
 
 # assume 12 second blocks as in the mainnet
 BLOCKS_PER_DAY = 86400 // 12
-NUM_DAYS = 10
+NUM_DAYS = 120
 V0 = 1e8
 INITIAL_PRICE = 2300
 RESERVE_X = V0 / 2 / INITIAL_PRICE
@@ -29,13 +29,40 @@ def diamond_after_swap(pool, price_feed, volatility, block_num):
 
 
 def dynamic_after_swap(pool, price_feed, volatility, block_num):
-    pool.beta = calculate_dynamic_beta(volatility)
+    parameter = {
+        "initial_min_fees": 0.01,
+        "alpha1": 0.39,
+        "alpha2": 0.012,
+        "beta1": 390,
+        "beta2": 60000,
+        "gamma1": 0.018518518518518517,
+        "gamma2": 0.001176470588235294,
+    }
+    pool.beta = calculate_dynamic_beta(
+        volatility,
+        parameter["initial_min_fees"],
+        parameter["alpha1"],
+        parameter["alpha2"],
+        parameter["beta1"],
+        parameter["beta2"],
+        parameter["gamma1"],
+        parameter["gamma2"],
+    )
     diamond_after_swap(pool, price_feed, volatility, block_num)
 
 
-def create_simulation():
+def create_simulation(
+    blocks_per_day=BLOCKS_PER_DAY,
+    num_days=NUM_DAYS,
+    tx_fee_per_eth=TX_FEE_PER_ETH,
+    new_liquidity=NEW_LIQUIDITY,
+    new_liquidity_period=NEW_LIQUIDITY_PERIOD,
+    beta=0.75,
+    diamond_after_swap=diamond_after_swap,
+    dynamic_after_swap=dynamic_after_swap,
+) -> Simulator:
     sim = Simulator(
-        BLOCKS_PER_DAY, NUM_DAYS, TX_FEE_PER_ETH, NEW_LIQUIDITY, NEW_LIQUIDITY_PERIOD
+        blocks_per_day, num_days, tx_fee_per_eth, new_liquidity, new_liquidity_period
     )
 
     sim.create_liquidity_pool(Token.ETH, Token.USDC, RESERVE_X, RESERVE_Y, 0.003)
@@ -47,7 +74,7 @@ def create_simulation():
         0.003,
         None,
         diamond_after_swap,
-        0.2,
+        beta,
     )
     sim.create_diamond_pool(
         Token.ETH,
@@ -57,7 +84,7 @@ def create_simulation():
         0.003,
         None,
         dynamic_after_swap,
-        0.2,
+        beta,
     )
 
     sim.create_oracle(INITIAL_PRICE, 0.05)
@@ -90,7 +117,7 @@ if __name__ == "__main__":
         print(f"Running simulation {i}")
 
         sim = create_simulation()
-        sim.run(verbose=True)
+        sim.run(verbose=False)
 
         new_row = {}
         new_row["Price"] = sim.oracle[-1][Token.ETH] / sim.oracle[-1][Token.USDC]
