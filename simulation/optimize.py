@@ -107,6 +107,7 @@ if __name__ == "__main__":
 
     # Shuffle parameter set
     np.random.shuffle(parameters)
+    print("Total parameters to test:", len(parameters))
 
     best_result = {
         "initial_min_fees": 0,
@@ -125,12 +126,12 @@ if __name__ == "__main__":
     if not os.path.exists("results/optimize.csv"):
         log_f = open("results/optimize.csv", "w")
         log_f.write(
-            "initial_min_fees, alpha1, alpha2, beta1, beta2, gamma1, gamma2, tvl_ratio\n"
+            "initial_min_fees,alpha1,alpha2,beta1,beta2,gamma1,gamma2,tvl_ratio\n"
         )
     else:
-        log_f = open("results/optimize.csv", "a")
         # Remove already tested parameters
         df = pd.read_csv("results/optimize.csv")
+        df.columns = df.columns.str.strip()
         tested_parameters = df[
             [
                 "initial_min_fees",
@@ -142,7 +143,13 @@ if __name__ == "__main__":
                 "gamma2",
             ]
         ].values
-        parameters = [p for p in parameters if tuple(p) not in tested_parameters]
+        print("Tested parameters:", len(tested_parameters))
+        tested_parameters_tuples = [tuple(row) for row in tested_parameters]
+        parameters = [p for p in parameters if tuple(p) not in tested_parameters_tuples]
+        print("Remaining parameters to test:", len(parameters))
+        best_result = df.iloc[df["tvl_ratio"].idxmax()].to_dict()
+        print(f"Best result so far: {best_result}")
+        log_f = open("results/optimize.csv", "a")
 
     while len(parameters) > 0:
         # Choose parameter set Randomly
